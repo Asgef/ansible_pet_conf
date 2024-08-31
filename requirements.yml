@@ -1,0 +1,10 @@
+collections:
+  # Install a collection from Ansible Galaxy "ansible-galaxy install -r requirements.yml"
+  - name: osx_provisioner.collection
+  - name: geerlingguy.mac
+  - name: community.postgresql
+  - name: community.general
+
+roles:
+  - neme: viasite-ansible.zsh
+

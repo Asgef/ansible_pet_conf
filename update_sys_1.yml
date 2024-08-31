@@ -1,0 +1,46 @@
+- name: Update system
+#  gather_facts: No
+  hosts: all
+  vars:
+    # user: asgef
+    asdf_version: v0.14.0
+    python_version: latest
+
+  tasks:
+    - name: Update apt package index
+      apt:
+        update_cache: yes
+      become: yes
+
+    # Обновляем приложения
+    - name: Upgrade all packages to the latest version
+      apt:
+        upgrade: dist
+        autoremove: yes
+        autoclean: yes
+      become: yes
+    
+    # Для обновления гита требуется его переустановка
+
+    - name: Remove old GIT version
+      apt:
+        name: git
+        state: absent
+      become: yes
+    
+    - name: Add GIT PPA repository
+      apt_repository:
+        repo: ppa:git-core/ppa
+        state: present
+      become: yes
+
+    - name: Install latest GIT version
+      apt:
+        name: git
+      become: yes
+
+
+
+    # Устанавливаем приложения
+    
+    

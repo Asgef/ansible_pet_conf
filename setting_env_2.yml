@@ -1,0 +1,188 @@
+- hosts: my_srvr
+  become: yes
+  vars:
+    user: vagrant
+    # your extra bundles here
+    zsh_antigen_bundles_extras:
+      - nvim
+      - joel-porquet/zsh-dircolors-solarized
+    # your variables here
+    zsh_autosuggestions_bind_key: "^U"
+    asdf_version: "v0.14.0"
+  
+  pre_tasks:
+    - name: Install founts
+      ansible.builtin.shell: "apt-get install fonts-powerline"
+
+  roles:
+    # - { role: viasite-ansible.zsh, zsh_user: "{{ user }}" } # Для удалённого управления
+    - viasite-ansible.zsh # Для инсталляции на localhost
+    - { role: viasite-ansible.zsh, zsh_user: "{{ user }}" }
+
+  tasks:
+    # Для последующей установки Python и Postgress потребуются пакеты
+
+    - name: Install package for Python and psql
+      apt:
+        name: "{{ item }}"
+        state: present
+      become: yes
+      with_items:
+        - ssh
+        - build-essential
+        - libssl-dev
+        - zlib1g-dev
+        - libbz2-dev
+        - libreadline-dev
+        - libsqlite3-dev
+        - libffi-dev
+        - libncursesw5-dev
+        - libgdbm-dev
+        - libnss3-dev
+        - liblzma-dev
+        - libyaml-dev
+        - tk-dev
+        - uuid-dev
+        - python3-psycopg2
+        - pipx
+        - postgresql
+        - make
+
+  # Установка asdf и плагинов
+
+    - name: Check if .asdf directory exists
+      stat:
+        path: "/home/{{ user }}/.asdf"
+      register: asdf_dir
+
+    - name: Clone ASDF repository
+      git:
+        repo: 'https://github.com/asdf-vm/asdf.git'
+        dest: "/home/{{ user }}/.asdf"
+        version: "{{ asdf_version }}"
+        update: no
+      become_user: "{{ user }}"
+      when: not asdf_dir.stat.exists
+
+    - name: Add asdf to .zshrc.local
+      lineinfile:
+        path: "/home/{{ user }}/.zshrc.local"
+        line: '. $HOME/.asdf/asdf.sh'
+        create: yes
+      become_user: "{{ user }}"
+
+    - name: Ensure .zshrc changes are applied
+      shell: source /home/{{ user }}/.zshrc
+      become_user: "{{ user }}"
+      args:
+        executable: /bin/zsh
+
+    - block:
+
+    # Python
+        - name: Add Python plugin to asdf
+          shell: asdf plugin-add python
+          become_user: "{{ user }}"
+
+        - name: Install latest Python version
+          shell: asdf install python latest
+          become_user: "{{ user }}"
+
+        - name: Set latest Python version as global
+          shell: asdf global python latest
+          args:
+            executable: /bin/zsh
+          become_user: "{{ user }}"
+
+        - name: Set alias for Python
+          ansible.builtin.command:
+            cmd: echo alias py='python' >> /home/{{ user }}/.zshrc.local
+          become_user: "{{ user }}"
+          become: yes
+
+    # Poetry
+        - name: Install latest Poetry version
+          shell: asdf install poetry latest
+          become_user: "{{ user }}"
+
+        - name: Set latest Poetry version as global
+          shell: asdf global poetry latest
+          args:
+            executable: /bin/bash
+          become_user: "{{ user }}"
+
+      environment:
+        PATH: "/home/{{ user }}/.asdf/bin:/home/{{ user }}/.asdf/shims:{{ ansible_env.PATH }}"
+    
+
+
+
+    - name: Add PostgreSQL role
+      community.postgresql.postgresql_user:
+        name: "{{ user }}"
+        role_attr_flags: "CREATEDB,CREATEROLE"
+      become_user: postgres
+
+    - name: Create PostgreSQL database
+      community.postgresql.postgresql_db:
+        name: test_1
+      become_user: postgres
+
+    - name: Grant privileges to role on database
+      community.postgresql.postgresql_privs:
+        database: test_1
+        type: database
+        privs: ALL
+        objs: test_1
+        roles: "{{ user }}"
+      become_user: postgres
+
+
+    # Install fonts 
+    - name: Make sure the font directory exists
+      file:
+        path: /usr/share/fonts/truetype/jetbrains-mono
+        state: directory
+        mode: '0755'
+
+    - name: Downloading an archive with fonts
+      get_url:
+        url: https://download.jetbrains.com/fonts/JetBrainsMono-1.0.3.zip
+        dest: /tmp/JetBrainsMono.zip
+    
+    - name: Unpack the archive with fonts
+      unarchive:
+          src: /tmp/JetBrainsMono.zip
+          dest: /usr/share/fonts/truetype/jetbrains-mono
+          remote_src: yes
+          creates: /usr/share/fonts/truetype/jetbrains-mono/JetBrainsMono-Regular.ttf
+    
+    - name: Make sure the font directory exists
+      file:
+        path: /usr/share/fonts/truetype/nerd_fonts_symbols
+        state: directory
+        mode: '0755'
+
+    - name: Downloading an archive with fonts
+      get_url:
+        url: https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/NerdFontsSymbolsOnly.zip
+        dest: /tmp/NerdFontsSymbolsOnly.zip
+    
+    - name: Unpack the archive with fonts_1
+      unarchive:
+          src: /tmp/NerdFontsSymbolsOnly.zip
+          dest: /usr/share/fonts/truetype/nerd_fonts_symbols
+          remote_src: yes
+          creates: /usr/share/fonts/truetype/nerd_fonts_symbols/SymbolsNerdFontMono-Regular.ttf
+    
+    - name: Unpack the archive with fonts_2
+      unarchive:
+          src: /tmp/NerdFontsSymbolsOnly.zip
+          dest: /usr/share/fonts/truetype/nerd_fonts_symbols
+          remote_src: yes
+          creates: /usr/share/fonts/truetype/nerd_fonts_symbols/SymbolsNerdFont-Regular.ttf
+    
+    
+    - name: Update cache fonts
+      command: fc-cache -f -v
+      
