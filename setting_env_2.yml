@@ -1,4 +1,4 @@
-- hosts: my_srvr
+- hosts: all
   become: yes
   vars:
     user: vagrant
@@ -11,12 +11,19 @@
     asdf_version: "v0.14.0"
   
   pre_tasks:
-    - name: Install founts
-      ansible.builtin.shell: "apt-get install fonts-powerline"
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Ensure no other apt processes are running
+      ansible.builtin.shell: "lsof /var/lib/dpkg/lock; lsof /var/lib/apt/lists/lock; lsof /var/cache/apt/archives/lock"
+      register: apt_locks
+      failed_when: apt_locks.stdout != ""
 
   roles:
     # - { role: viasite-ansible.zsh, zsh_user: "{{ user }}" } # Для удалённого управления
-    - viasite-ansible.zsh # Для инсталляции на localhost
+    # - viasite-ansible.zsh # Для инсталляции на localhost
+    - { role: viasite-ansible.zsh, zsh_user: ansible }
     - { role: viasite-ansible.zsh, zsh_user: "{{ user }}" }
 
   tasks:
@@ -47,6 +54,8 @@
         - pipx
         - postgresql
         - make
+        - unzip
+        - fontconfig
 
   # Установка asdf и плагинов
 
@@ -101,6 +110,10 @@
           become: yes
 
     # Poetry
+        - name: Add Poetry plugin to asdf
+          shell: asdf plugin-add poetry https://github.com/asdf-community/asdf-poetry.git
+          become_user: "{{ user }}"
+
         - name: Install latest Poetry version
           shell: asdf install poetry latest
           become_user: "{{ user }}"

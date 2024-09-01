@@ -1,4 +1,4 @@
 [group_sys]
 
-my_srvr ansible_host=192.168.1.147 ansible_user=ansible ansible_port=22
+my_srvr ansible_host=192.168.1.76 ansible_user=ansible ansible_port=22
 
