@@ -1,0 +1,56 @@
+---
+- name: Initial server setup
+  hosts: all
+  become: yes
+  vars_files:
+    - vars/keys.yml
+  vars:
+    ansible_admin_user: ansible
+    pm_user: asgef
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+  tasks:
+    - name: Create ansible user
+      user:
+        name: "{{ ansible_admin_user }}"
+        shell: /bin/bash
+        create_home: yes
+
+    - name: Add SSH key for ansible user
+      authorized_key:
+        user: "{{ ansible_admin_user }}"
+        key: "{{ ansible_pub_key }}"
+
+    - name: Allow ansible user to have passwordless sudo
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%{{ ansible_admin_user }} ALL=\(ALL\) NOPASSWD:ALL'
+        line: '%{{ ansible_admin_user }} ALL=(ALL) NOPASSWD:ALL'
+        validate: 'visudo -cf %s'
+
+    - name: Create project manager user
+      user:
+        name: "{{ pm_user }}"
+        shell: /bin/bash
+        create_home: yes
+
+    - name: Add SSH key for project manager user
+      authorized_key:
+        user: "{{ pm_user }}"
+        key: "{{ asgef_pub_key }}"
+
+    - name: Configure SSH daemon
+      blockinfile:
+        path: /etc/ssh/sshd_config
+        block: |
+          AllowUsers {{ ansible_admin_user }} {{ pm_user }}
+          PermitRootLogin no
+          PasswordAuthentication no
+
+    - name: Restart SSH service
+      service:
+        name: ssh
+        state: restarted
+
+# ansible-playbook initial_server_setup.yml -i root_hosts -u root --ask-pass --become --ask-become-pass

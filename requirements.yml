@@ -6,5 +6,5 @@ collections:
   - name: community.general
 
 roles:
-  - neme: viasite-ansible.zsh
+  - name: viasite-ansible.zsh
 

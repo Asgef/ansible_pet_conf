@@ -1,30 +1,8 @@
 - hosts: all
   become: yes
   vars:
-    user: vagrant
-    # your extra bundles here
-    zsh_antigen_bundles_extras:
-      - nvim
-      - joel-porquet/zsh-dircolors-solarized
-    # your variables here
-    zsh_autosuggestions_bind_key: "^U"
+    user: asgef
     asdf_version: "v0.14.0"
-  
-  pre_tasks:
-    - name: Update apt cache
-      ansible.builtin.apt:
-        update_cache: yes
-
-    - name: Ensure no other apt processes are running
-      ansible.builtin.shell: "lsof /var/lib/dpkg/lock; lsof /var/lib/apt/lists/lock; lsof /var/cache/apt/archives/lock"
-      register: apt_locks
-      failed_when: apt_locks.stdout != ""
-
-  roles:
-    # - { role: viasite-ansible.zsh, zsh_user: "{{ user }}" } # Для удалённого управления
-    # - viasite-ansible.zsh # Для инсталляции на localhost
-    - { role: viasite-ansible.zsh, zsh_user: ansible }
-    - { role: viasite-ansible.zsh, zsh_user: "{{ user }}" }
 
   tasks:
     # Для последующей установки Python и Postgress потребуются пакеты
@@ -33,7 +11,6 @@
       apt:
         name: "{{ item }}"
         state: present
-      become: yes
       with_items:
         - ssh
         - build-essential
@@ -56,6 +33,8 @@
         - make
         - unzip
         - fontconfig
+        - mosh
+        - zip
 
   # Установка asdf и плагинов
 
@@ -73,18 +52,18 @@
       become_user: "{{ user }}"
       when: not asdf_dir.stat.exists
 
-    - name: Add asdf to .zshrc.local
+    - name: Add asdf to .bashrc
       lineinfile:
-        path: "/home/{{ user }}/.zshrc.local"
+        path: "/home/{{ user }}/.bashrc"
         line: '. $HOME/.asdf/asdf.sh'
         create: yes
       become_user: "{{ user }}"
 
-    - name: Ensure .zshrc changes are applied
-      shell: source /home/{{ user }}/.zshrc
+    - name: Ensure .bashrc changes are applied
+      shell: source /home/{{ user }}/.bashrc
       become_user: "{{ user }}"
       args:
-        executable: /bin/zsh
+        executable: /bin/bash
 
     - block:
 
@@ -100,14 +79,13 @@
         - name: Set latest Python version as global
           shell: asdf global python latest
           args:
-            executable: /bin/zsh
+            executable: /bin/bash
           become_user: "{{ user }}"
 
         - name: Set alias for Python
           ansible.builtin.command:
-            cmd: echo alias py='python' >> /home/{{ user }}/.zshrc.local
+            cmd: echo alias py='python' >> /home/{{ user }}/.bashrc
           become_user: "{{ user }}"
-          become: yes
 
     # Poetry
         - name: Add Poetry plugin to asdf
@@ -149,53 +127,4 @@
         objs: test_1
         roles: "{{ user }}"
       become_user: postgres
-
-
-    # Install fonts 
-    - name: Make sure the font directory exists
-      file:
-        path: /usr/share/fonts/truetype/jetbrains-mono
-        state: directory
-        mode: '0755'
-
-    - name: Downloading an archive with fonts
-      get_url:
-        url: https://download.jetbrains.com/fonts/JetBrainsMono-1.0.3.zip
-        dest: /tmp/JetBrainsMono.zip
-    
-    - name: Unpack the archive with fonts
-      unarchive:
-          src: /tmp/JetBrainsMono.zip
-          dest: /usr/share/fonts/truetype/jetbrains-mono
-          remote_src: yes
-          creates: /usr/share/fonts/truetype/jetbrains-mono/JetBrainsMono-Regular.ttf
-    
-    - name: Make sure the font directory exists
-      file:
-        path: /usr/share/fonts/truetype/nerd_fonts_symbols
-        state: directory
-        mode: '0755'
-
-    - name: Downloading an archive with fonts
-      get_url:
-        url: https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/NerdFontsSymbolsOnly.zip
-        dest: /tmp/NerdFontsSymbolsOnly.zip
-    
-    - name: Unpack the archive with fonts_1
-      unarchive:
-          src: /tmp/NerdFontsSymbolsOnly.zip
-          dest: /usr/share/fonts/truetype/nerd_fonts_symbols
-          remote_src: yes
-          creates: /usr/share/fonts/truetype/nerd_fonts_symbols/SymbolsNerdFontMono-Regular.ttf
-    
-    - name: Unpack the archive with fonts_2
-      unarchive:
-          src: /tmp/NerdFontsSymbolsOnly.zip
-          dest: /usr/share/fonts/truetype/nerd_fonts_symbols
-          remote_src: yes
-          creates: /usr/share/fonts/truetype/nerd_fonts_symbols/SymbolsNerdFont-Regular.ttf
-    
-    
-    - name: Update cache fonts
-      command: fc-cache -f -v
       

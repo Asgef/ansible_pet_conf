@@ -2,11 +2,26 @@
 #  gather_facts: No
   hosts: all
   vars:
-    # user: asgef
-    asdf_version: v0.14.0
-    python_version: latest
 
   tasks:
+    - name: Ensure /var/lib/apt/lists directory exists
+      ansible.builtin.file:
+        path: /var/lib/apt/lists
+        state: directory
+        owner: root
+        group: root
+        mode: '755'
+      become: yes
+
+    - name: create block-list
+      ansible.builtin.file:
+        path: /var/lib/apt/lists/lock
+        state: touch
+        owner: root
+        group: root
+        mode: '640'
+      become: yes
+
     - name: Update apt package index
       apt:
         update_cache: yes

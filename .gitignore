@@ -1,3 +1,5 @@
 ansible.log
 facts
 package_facts.json
+vars/passwords.yml
+vars/keys.yml
