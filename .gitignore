@@ -3,3 +3,4 @@ facts
 package_facts.json
 vars/passwords.yml
 vars/keys.yml
+configs/keys.yml

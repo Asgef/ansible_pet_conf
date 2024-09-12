@@ -1,5 +1,6 @@
-- hosts: all
+- hosts: group_sys
   become: yes
+  become_method: sudo
   vars:
     user: asgef
     asdf_version: "v0.14.0"
@@ -35,8 +36,9 @@
         - fontconfig
         - mosh
         - zip
-
-  # Установка asdf и плагинов
+        - acl
+    
+    # Установка asdf и плагинов
 
     - name: Check if .asdf directory exists
       stat:
@@ -52,60 +54,69 @@
       become_user: "{{ user }}"
       when: not asdf_dir.stat.exists
 
-    - name: Add asdf to .bashrc
+    - name: Add ASDF_DIR to .bashrc
       lineinfile:
         path: "/home/{{ user }}/.bashrc"
         line: '. $HOME/.asdf/asdf.sh'
         create: yes
       become_user: "{{ user }}"
 
-    - name: Ensure .bashrc changes are applied
-      shell: source /home/{{ user }}/.bashrc
-      become_user: "{{ user }}"
-      args:
-        executable: /bin/bash
 
     - block:
 
     # Python
-        - name: Add Python plugin to asdf
-          shell: asdf plugin-add python
-          become_user: "{{ user }}"
+      - name: Add Python plugin to asdf
+        shell: /home/{{ user }}/.asdf/bin/asdf plugin-add python
+        become_user: "{{ user }}"
+        args:
+          executable: /bin/sh
 
-        - name: Install latest Python version
-          shell: asdf install python latest
-          become_user: "{{ user }}"
 
-        - name: Set latest Python version as global
-          shell: asdf global python latest
-          args:
-            executable: /bin/bash
-          become_user: "{{ user }}"
+      - name: Install latest Python version
+        shell: /home/{{ user }}/.asdf/bin/asdf install python latest
+        become_user: "{{ user }}"
+        args:
+          executable: /bin/sh
 
-        - name: Set alias for Python
-          ansible.builtin.command:
-            cmd: echo alias py='python' >> /home/{{ user }}/.bashrc
-          become_user: "{{ user }}"
 
-    # Poetry
-        - name: Add Poetry plugin to asdf
-          shell: asdf plugin-add poetry https://github.com/asdf-community/asdf-poetry.git
-          become_user: "{{ user }}"
+      - name: Set latest Python version as global
+        shell: /home/{{ user }}/.asdf/bin/asdf global python latest
+        become_user: "{{ user }}"
+        args:
+          executable: /bin/sh
 
-        - name: Install latest Poetry version
-          shell: asdf install poetry latest
-          become_user: "{{ user }}"
 
-        - name: Set latest Poetry version as global
-          shell: asdf global poetry latest
-          args:
-            executable: /bin/bash
-          become_user: "{{ user }}"
+      - name: Set alias for Python
+        ansible.builtin.command:
+          cmd: echo "alias py='python'" >> /home/{{ user }}/.bashrc
+        become_user: "{{ user }}"
+        become: yes
+      
+      - name: Set alias for Python
+        lineinfile:
+          path: "/home/{{ user }}/.bashrc"
+          line: "alias py='python'"
+          create: yes
+        become_user: "{{ user }}"
 
-      environment:
-        PATH: "/home/{{ user }}/.asdf/bin:/home/{{ user }}/.asdf/shims:{{ ansible_env.PATH }}"
-    
 
+  # Poetry
+      - name: Add Poetry plugin to asdf
+        shell: /home/{{ user }}/.asdf/bin/asdf plugin-add poetry https://github.com/asdf-community/asdf-poetry.git
+        become_user: "{{ user }}"
+        args:
+          executable: /bin/sh
+
+        
+      - name: Install latest Poetry version
+        shell: /home/{{ user }}/.asdf/bin/asdf install poetry latest
+        become_user: "{{ user }}"
+
+      - name: Set latest Poetry version as global
+        shell: /home/{{ user }}/.asdf/bin/asdf global poetry latest
+        args:
+          executable: /bin/bash
+        become_user: "{{ user }}"
 
 
     - name: Add PostgreSQL role

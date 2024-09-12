@@ -1,1 +1,2 @@
+[root_hosts]
 fvds ansible_host=188.120.247.71 ansible_user=root ansible_port=22

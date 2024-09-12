@@ -1,6 +1,6 @@
 - name: Update system
 #  gather_facts: No
-  hosts: all
+  hosts: group_sys
   vars:
 
   tasks:
