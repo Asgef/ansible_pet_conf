@@ -63,7 +63,6 @@
 
 
     - block:
-
     # Python
       - name: Add Python plugin to asdf
         shell: /home/{{ user }}/.asdf/bin/asdf plugin-add python
@@ -100,7 +99,7 @@
         become_user: "{{ user }}"
 
 
-  # Poetry
+    # Poetry
       - name: Add Poetry plugin to asdf
         shell: /home/{{ user }}/.asdf/bin/asdf plugin-add poetry https://github.com/asdf-community/asdf-poetry.git
         become_user: "{{ user }}"
@@ -118,24 +117,49 @@
           executable: /bin/bash
         become_user: "{{ user }}"
 
+    - name: install postgresql
+      apt:
+        name: postgresql
+        state: present
+    
+    - name: Ensure PostgreSQL service is running
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+    
+    - name: Get PostgreSQL version
+      command: psql --version
+      register: psql_version_output
+    
+    - name: Set PostgreSQL version fact
+      set_fact:
+        postgresql_version: "{{ psql_version_output.stdout.split(' ')[2].split('.')[0] }}"
 
-    - name: Add PostgreSQL role
-      community.postgresql.postgresql_user:
-        name: "{{ user }}"
-        role_attr_flags: "CREATEDB,CREATEROLE"
-      become_user: postgres
+    - name: Update pg_hba.conf to allow password authentication
+      lineinfile:
+        path: /etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf
+        regexp: '^local'
+        line: 'local   all             all                                     md5'
+        state: present
+    
+    - name: Update pg_hba.conf to allow password authentication for users
+      lineinfile:
+        path: /etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf
+        regexp: '^host'
+        line: 'host    gwentdb     {{ user }}     0.0.0.0/0     md5'
+        state: present
+        # TODO: следует отработать замену строки а не простое добавление. Определиться с порядком добавления ДБ
 
-    - name: Create PostgreSQL database
-      community.postgresql.postgresql_db:
-        name: test_1
-      become_user: postgres
-
-    - name: Grant privileges to role on database
-      community.postgresql.postgresql_privs:
-        database: test_1
-        type: database
-        privs: ALL
-        objs: test_1
-        roles: "{{ user }}"
-      become_user: postgres
-      
+    - name: Update postgresql.conf
+      lineinfile:
+        path: /etc/postgresql/{{ postgresql_version }}/main/postgresql.conf
+        regexp: '^listen_addresses'
+        line: "listen_addresses = '*'"
+        state: present
+    
+    - name: Restart PostgreSQL service
+      service:
+        name: postgresql
+        state: restarted
+  

@@ -1,2 +1,2 @@
 [group_sys]
-fvds ansible_host=188.120.247.71 ansible_user=ansible ansible_port=22
+fvds_admn ansible_host=188.120.247.71 ansible_user=ansible ansible_port=22
