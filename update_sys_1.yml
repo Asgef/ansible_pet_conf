@@ -2,6 +2,7 @@
 #  gather_facts: No
   hosts: group_sys
   vars:
+    python_version: "3.12.6"
 
   tasks:
     - name: Ensure /var/lib/apt/lists directory exists
@@ -54,8 +55,90 @@
         name: git
       become: yes
 
-
-
     # Устанавливаем приложения
     
+    # Для последующей установки Python и Postgress потребуются пакеты
+  
+    - name: Install package for Python and psql
+      apt:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - ssh
+        - build-essential
+        - libssl-dev
+        - zlib1g-dev
+        - libbz2-dev
+        - libreadline-dev
+        - libsqlite3-dev
+        - libffi-dev
+        - libncursesw5-dev
+        - libgdbm-dev
+        - libnss3-dev
+        - liblzma-dev
+        - libyaml-dev
+        - tk-dev
+        - uuid-dev
+        - python3-psycopg2
+        - llvm
+        - libncurses5-dev
+        - postgresql
+        - make
+        - unzip
+        - fontconfig
+        - xz-utils
+        - mosh
+        - zip
+        - acl
+        - curl
+        - wget
+
+    - name: Check py
+      ansible.builtin.command:
+        cmd: |
+          python --version
+      register: py_processes
+      ignore_errors: true
     
+    - name: Download Python source
+      get_url:
+        url: https://www.python.org/ftp/python/{{ python_version }}/Python-{{ python_version }}.tgz
+        dest: /tmp/Python-{{ python_version }}.tgz
+      when: py_processes.rc != 0
+    
+    - name: Extract Python source
+      unarchive:
+        src: /tmp/Python-{{ python_version }}.tgz
+        dest: /usr/src
+        remote_src: yes
+      when: py_processes.rc != 0
+    
+    - name: Build and install Python
+      ansible.builtin.shell: |
+        /usr/src/Python-3.12.6/configure --prefix=/usr/local --enable-optimizations
+        make altinstall
+      args:
+        chdir: /usr/src/Python-3.12.6
+      register: build_result
+      ignore_errors: yes
+      when: py_processes.rc != 0
+
+
+    - name: Clean up
+      file:
+        path: /tmp/Python-{{ python_version }}.tgz
+        state: absent
+      when: py_processes.rc != 0
+
+    - name: Create symbolic link for python
+      ansible.builtin.command:
+        cmd: update-alternatives --install /usr/bin/python python /usr/local/bin/python3.12 1
+      when: py_processes.rc != 0
+
+    - name: Add alias for python to .bashrc
+      ansible.builtin.lineinfile:
+        path: "/home/{{ user }}/.bashrc"
+        line: "alias py='python3.12'"
+        create: yes
+      become_user: "{{ user }}"
+      when: py_processes.rc != 0

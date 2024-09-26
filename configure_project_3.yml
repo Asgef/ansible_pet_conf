@@ -48,19 +48,6 @@
     #     line: 'DATABASE_URL=postgresql://{{ user }}:{{ random_password.stdout }}@{{ ansible_host }}/{{ project_name }}'
     #     create: yes
 
-
-    - name: Ensure the directory exists
-      file:
-        path: /home/{{ user }}/{{ project_name }}
-        state: directory
-        owner: "{{ user }}"
-        group: "{{ user }}"
-        mode: '0755'
     
-    - name: Copy .env_prod to remote server
-      copy:
-        src: '{{ project_path }}/.env_prod'
-        dest: /home/{{ user }}/{{ project_name }}/.env
-        owner: "{{ user }}"
-        group: "{{ user }}"
-        mode: '0600'
+    - name: Add GitHub in known_hosts
+      ansible.builtin.shell: ssh-keyscan github.com >> ~/.ssh/known_hosts

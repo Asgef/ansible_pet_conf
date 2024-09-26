@@ -3,124 +3,45 @@
   become_method: sudo
   vars:
     user: asgef
-    asdf_version: "v0.14.0"
+    
+    ansible_python_interpreter: /usr/local/bin/python3.12
 
   tasks:
-    # Для последующей установки Python и Postgress потребуются пакеты
+    - name: Install pip for Python 3.12 if not installed
+      command: /usr/local/bin/python3.12 -m ensurepip
+      register: ensure_pip
+      ignore_errors: yes
 
-    - name: Install package for Python and psql
-      apt:
-        name: "{{ item }}"
-        state: present
-      with_items:
-        - ssh
-        - build-essential
-        - libssl-dev
-        - zlib1g-dev
-        - libbz2-dev
-        - libreadline-dev
-        - libsqlite3-dev
-        - libffi-dev
-        - libncursesw5-dev
-        - libgdbm-dev
-        - libnss3-dev
-        - liblzma-dev
-        - libyaml-dev
-        - tk-dev
-        - uuid-dev
-        - python3-psycopg2
-        - pipx
-        - postgresql
-        - make
-        - unzip
-        - fontconfig
-        - mosh
-        - zip
-        - acl
+    - name: Install packaging for Python 3.12
+      ansible.builtin.command:
+        cmd: /usr/local/bin/python3.12 -m pip install packaging
+      when: ensure_pip.rc == 0
+
     
-    # Установка asdf и плагинов
 
-    - name: Check if .asdf directory exists
-      stat:
-        path: "/home/{{ user }}/.asdf"
-      register: asdf_dir
-
-    - name: Clone ASDF repository
-      git:
-        repo: 'https://github.com/asdf-vm/asdf.git'
-        dest: "/home/{{ user }}/.asdf"
-        version: "{{ asdf_version }}"
-        update: no
+    - name: Install Poetry
+      pip:
+        name: poetry
       become_user: "{{ user }}"
-      when: not asdf_dir.stat.exists
 
-    - name: Add ASDF_DIR to .bashrc
-      lineinfile:
-        path: "/home/{{ user }}/.bashrc"
-        line: '. $HOME/.asdf/asdf.sh'
-        create: yes
+    - name: Install Poetry
+      pip:
+        name: poetry
+    
+    - name: Check py
+      ansible.builtin.command:
+        cmd: |
+          poetry --version
+      register: py_processes
+      ignore_errors: true
       become_user: "{{ user }}"
 
 
-    - block:
-    # Python
-      - name: Add Python plugin to asdf
-        shell: /home/{{ user }}/.asdf/bin/asdf plugin-add python
-        become_user: "{{ user }}"
-        args:
-          executable: /bin/sh
+    - name: Show var
+      ansible.builtin.debug:
+        var: py_processes
 
-
-      - name: Install latest Python version
-        shell: /home/{{ user }}/.asdf/bin/asdf install python latest
-        become_user: "{{ user }}"
-        args:
-          executable: /bin/sh
-
-
-      - name: Set latest Python version as global
-        shell: /home/{{ user }}/.asdf/bin/asdf global python latest
-        become_user: "{{ user }}"
-        args:
-          executable: /bin/sh
-
-
-      - name: Set alias for Python
-        ansible.builtin.command:
-          cmd: echo "alias py='python'" >> /home/{{ user }}/.bashrc
-        become_user: "{{ user }}"
-        become: yes
-      
-      - name: Set alias for Python
-        lineinfile:
-          path: "/home/{{ user }}/.bashrc"
-          line: "alias py='python'"
-          create: yes
-        become_user: "{{ user }}"
-
-
-    # Poetry
-      - name: Add Poetry plugin to asdf
-        shell: /home/{{ user }}/.asdf/bin/asdf plugin-add poetry https://github.com/asdf-community/asdf-poetry.git
-        become_user: "{{ user }}"
-        args:
-          executable: /bin/sh
-
-        
-      - name: Install latest Poetry version
-        shell: /home/{{ user }}/.asdf/bin/asdf install poetry latest
-        become_user: "{{ user }}"
-
-      - name: Set latest Poetry version as global
-        shell: /home/{{ user }}/.asdf/bin/asdf global poetry latest
-        args:
-          executable: /bin/bash
-        become_user: "{{ user }}"
-
-    - name: install postgresql
-      apt:
-        name: postgresql
-        state: present
+    # PostgreSQL
     
     - name: Ensure PostgreSQL service is running
       service:
@@ -162,4 +83,4 @@
       service:
         name: postgresql
         state: restarted
-  
+        
