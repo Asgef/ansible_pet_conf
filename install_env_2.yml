@@ -24,22 +24,11 @@
         name: poetry
       become_user: "{{ user }}"
 
-    - name: Install Poetry
+    - name: Install dotenv
       pip:
-        name: poetry
-    
-    - name: Check py
-      ansible.builtin.command:
-        cmd: |
-          poetry --version
-      register: py_processes
-      ignore_errors: true
-      become_user: "{{ user }}"
+        name: python-dotenv
+        become_user: "{{ user }}"
 
-
-    - name: Show var
-      ansible.builtin.debug:
-        var: py_processes
 
     # PostgreSQL
     
